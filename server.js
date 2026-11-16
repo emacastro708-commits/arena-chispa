@@ -58,9 +58,9 @@ async function api(req, res, url, ip) {
   if (req.method === 'GET' && url.pathname === '/api/top') {
     const cat = url.searchParams.get('cat'); if (!CATS.includes(cat)) return send(res, 400, { error: 'categoría' });
     const rows = Object.values(db.users).filter(u => u[cat] > 0).sort((a, b) => b[cat] - a[cat] || a.t - b.t);
-    const top = rows.slice(0, 10).map(u => ({ n: u.name, v: u[cat] }));
+    const top = rows.slice(0, 10).map(u => ({ n: u.name, v: u[cat], c: u.c }));
     let me = null; const q = cleanName(url.searchParams.get('name'));
-    if (q) { const i = rows.findIndex(u => key(u.name) === key(q)); if (i >= 0) me = { n: rows[i].name, v: rows[i][cat], r: i + 1 }; }
+    if (q) { const i = rows.findIndex(u => key(u.name) === key(q)); if (i >= 0) me = { n: rows[i].name, v: rows[i][cat], r: i + 1, c: rows[i].c }; }
     return send(res, 200, { top, me, total: rows.length });
   }
 
