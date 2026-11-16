@@ -124,6 +124,9 @@ body.touch .cards.sk .card{width:max(calc(var(--u)*130),78px)}
 .pop{animation:pp .5s cubic-bezier(.2,1.8,.4,1) both}
 @keyframes pp{0%{transform:scale(.2)}100%{transform:scale(1)}}
 #chestRes{margin-top:calc(var(--u)*20);font-size:calc(var(--u)*30);font-weight:900;color:#ffd23f;min-height:calc(var(--u)*40)}
+#prof .pav{width:calc(var(--u)*92);height:calc(var(--u)*92);border-radius:50%;border:calc(var(--u)*5) solid #22203a;display:flex;align-items:center;justify-content:center;font-size:calc(var(--u)*48);margin-top:calc(var(--u)*6)}
+#prof .pnm{margin-top:calc(var(--u)*8);font-size:calc(var(--u)*34);font-weight:900;color:#ffd23f;-webkit-text-stroke:calc(var(--u)*4) #22203a;paint-order:stroke fill}
+#prof .stats{font-size:calc(var(--u)*17);margin-top:calc(var(--u)*10);padding:calc(var(--u)*10) calc(var(--u)*34);gap:calc(var(--u)*3) calc(var(--u)*30)}
 #lb .tabs{margin-top:calc(var(--u)*10)}
 #lbTable{margin-top:calc(var(--u)*12);min-width:calc(var(--u)*560);background:rgba(10,8,30,.55);border:calc(var(--u)*3) solid #4b3f93;border-radius:calc(var(--u)*16);padding:calc(var(--u)*8) calc(var(--u)*22)}
 #lbTable .lr{display:grid;grid-template-columns:calc(var(--u)*50) 1fr auto;gap:calc(var(--u)*12);align-items:center;padding:calc(var(--u)*5) 0;font-size:max(calc(var(--u)*20),12px);font-weight:800;color:#eceaff;text-align:left}
@@ -144,6 +147,7 @@ body.touch .cards.sk .card{width:max(calc(var(--u)*130),78px)}
 
   <div id="menu" class="overlay">
     <div id="menuCoins" class="tag" style="position:absolute;top:calc(var(--u)*14);left:calc(var(--u)*18);margin:0"></div>
+    <button id="profB" class="sec" style="position:absolute;top:calc(var(--u)*56);left:calc(var(--u)*14);margin:0"></button>
     <button id="desB" class="sec" style="position:absolute;top:calc(var(--u)*10);right:calc(var(--u)*190);margin:0">⚔ DESAFÍO</button>
     <button id="misB" class="sec" style="position:absolute;top:calc(var(--u)*10);right:calc(var(--u)*14);margin:0">📋 MISIONES</button>
     <button id="lbB" class="sec" style="position:absolute;top:calc(var(--u)*68);right:calc(var(--u)*14);margin:0">🏆 CLASIFICACIÓN</button>
@@ -211,6 +215,16 @@ body.touch .cards.sk .card{width:max(calc(var(--u)*130),78px)}
     <div id="chestIc">🎁</div>
     <div id="chestRes"></div>
     <button id="chestOk" class="hidden">OK</button>
+  </div>
+
+  <div id="prof" class="overlay hidden">
+    <h2 class="up" id="profH" style="color:#7ad7ff;font-size:calc(var(--u)*44)">PERFIL</h2>
+    <div class="pav" id="profAv"></div>
+    <div class="pnm" id="profNm"></div>
+    <div class="stats" id="profSt"></div>
+    <div id="lbName" style="margin-top:calc(var(--u)*10)"><span>Nombre:</span><input id="profIn" maxlength="12" autocomplete="off" spellcheck="false"><button id="profSave" class="sec" style="margin:0">GUARDAR</button></div>
+    <p id="profMsg" class="tag" style="margin-top:calc(var(--u)*4);font-size:max(calc(var(--u)*14),11px)"></p>
+    <button id="profBack" style="margin-top:calc(var(--u)*8)">VOLVER</button>
   </div>
 
   <div id="lb" class="overlay hidden">
@@ -1334,6 +1348,7 @@ function gameOver() {
   $('fScore').textContent = score; $('fWave').textContent = Math.max(1, wave); $('fKills').textContent = kills; $('fBest').textContent = best; $('fCups').textContent = cups + ' · ' + rankOf(cups).e + ' ' + rankOf(cups).n;
   $('newrec').classList.toggle('hidden', !nr && mode !== 'des'); $('newrec').textContent = '¡NUEVO RÉCORD!'; $('over').querySelector('h2').textContent = 'GAME OVER';
   if (mode === 'des') desReward();
+  profAdd(kills);
   lbSubmit(mode === 'des' ? 0 : Math.max(1, wave), runCoins);
   const me = {s:score, w:Math.max(1, wave)};
   if (score > 0) {
@@ -1412,12 +1427,14 @@ let coins = 0, cups = 0, owned = ['0'], skinI = 0;
 try { coins = +localStorage.getItem('arenaChispaCoins') || 0; owned = JSON.parse(localStorage.getItem('arenaChispaOwned') || '["0"]'); skinI = +localStorage.getItem('arenaChispaSkin') || 0; } catch (e) {}
 if (!owned.includes(String(skinI))) skinI = 0;
 if (!owned.includes(String(skinR))) skinR = -1;
+const SKINS_ON = false;   // skins desactivadas por ahora (tus datos guardados no se tocan). Para volver a activarlas: true
+if (!SKINS_ON) { skinI = 0; skinR = -1; }
 try { cups = +localStorage.getItem('arenaChispaCups') || 0; } catch (e) {}
 function isEq(k, i) { return k.only === 2 ? skinR === i : skinI === i; }
 function openShop() {
   const box = $('skins'); box.innerHTML = ''; $('shopCoins').textContent = coins + '  ·  🎫 ' + bonos;
   const ch = document.createElement('div'); ch.className = 'card'; ch.dataset.t = 'chest';
-  ch.innerHTML = '<div class="ic">🎁</div><div class="nm">Cofre</div><div class="ds">🪙 50 · skin exclusiva</div>'; ch.onclick = openChest; box.appendChild(ch);
+  ch.innerHTML = '<div class="ic">🎁</div><div class="nm">Cofre</div><div class="ds">🪙 50 · sorpresa</div>'; ch.onclick = openChest; box.appendChild(ch);
   SKINS.forEach((k, i) => {
     const has = owned.includes(String(i)), lk = k.ex && !has, c = document.createElement('div'); c.className = 'card'; c.dataset.t = 'skins';
     const ic = document.createElement('div'); ic.className = 'ic'; ic.textContent = lk ? '❓' : k.hat || '🙂';
@@ -1454,7 +1471,8 @@ function openShop() {
   $('tabSk').style.filter = shopTab === 'skins' ? 'none' : 'brightness(.6)'; $('tabGa').style.filter = shopTab === 'gad' ? 'none' : 'brightness(.6)'; $('tabCo').style.filter = shopTab === 'chest' ? 'none' : 'brightness(.6)';
   $('menu').classList.add('hidden'); $('shop').classList.remove('hidden');
 }
-let shopTab = 'skins';
+let shopTab = SKINS_ON ? 'skins' : 'gad';
+if (!SKINS_ON) $('tabSk').classList.add('hidden');
 $('tabSk').onclick = () => { shopTab = 'skins'; openShop(); };
 $('tabGa').onclick = () => { shopTab = 'gad'; openShop(); };
 $('tabCo').onclick = () => { shopTab = 'chest'; openShop(); };
@@ -1550,7 +1568,7 @@ const RANKS = [
 function rankOf(c) { let r = RANKS[0]; for (const k of RANKS) if (c >= k.m) r = k; return r; }
 function openChest() {
   if (coins < 50) { $('shopMsg').textContent = 'Faltan 🪙' + (50 - coins); return; }
-  coins -= 50; const lock = SKINS.map((k, i) => i).filter(i => SKINS[i].ex && !owned.includes(String(i))); let msg;
+  coins -= 50; const lock = SKINS.map((k, i) => i).filter(i => SKINS_ON && SKINS[i].ex && !owned.includes(String(i))); let msg;
   if (lock.length && Math.random() < .4) { const i = lock[Math.floor(Math.random() * lock.length)]; owned.push(String(i)); save('arenaChispaOwned', JSON.stringify(owned)); msg = '🎉 ¡Skin exclusiva: ' + SKINS[i].n + '!'; SFX.kill(); }
   else if (Math.random() < .65) { const c = 20 + Math.floor(Math.random() * 41); coins += c; msg = 'Cofre: +🪙' + c; SFX.pick(); }
   else { const b = 3 + Math.floor(Math.random() * 10); bonos += b; save('arenaChispaBonos', bonos); msg = 'Cofre: +🎫' + b + ' bonos'; SFX.pick(); }
@@ -1628,21 +1646,53 @@ function openLB() { $('menu').classList.add('hidden'); $('lb').classList.remove(
 $('lbB').onclick = openLB;
 for (let i = 0; i < 3; i++) $('lbT' + i).onclick = () => { lbTab = i; SFX.pick(); lbRender(); };
 $('lbBack').onclick = () => { $('lb').classList.add('hidden'); $('menu').classList.remove('hidden'); setMC(); };
-$('lbSave').onclick = () => {
-  const n = $('lbIn').value.replace(/\s+/g, ' ').trim();
-  if (!/^[\p{L}\p{N}_ ]{3,12}$/u.test(n)) { lbMsg('Nombre inválido: 3 a 12 letras, números o _', true); return; }
-  if (n === lbName) { lbMsg('Ese ya es tu nombre'); return; }
-  lbMsg('Guardando…');
+function lbClaim(n, say, after) {
+  n = n.replace(/\s+/g, ' ').trim();
+  if (!/^[\p{L}\p{N}_ ]{3,12}$/u.test(n)) { say('Nombre inválido: 3 a 12 letras, números o _', true); return; }
+  if (n === lbName) { say('Ese ya es tu nombre'); return; }
+  say('Guardando…');
   lbApi('/api/claim', {name:n, token:lbTok}).then(r => {
-    if (r.status === 409) { lbMsg('Ese nombre ya está en uso, prueba otro', true); return; }
-    if (!r.ok) { lbMsg('No se pudo guardar el nombre', true); return; }
-    lbName = n; save('arenaChispaName', lbName); SFX.pick(); lbMsg('¡Listo, ' + n + '!'); lbRender();
-  }).catch(() => lbMsg('Sin conexión con el servidor', true));
-};
+    if (r.status === 409) { say('Ese nombre ya está en uso, prueba otro', true); return; }
+    if (!r.ok) { say('No se pudo guardar el nombre', true); return; }
+    lbName = n; save('arenaChispaName', lbName); SFX.pick(); say('¡Listo, ' + n + '!'); lbPush(); profBtn(); after();
+  }).catch(() => say('Sin conexión con el servidor', true));
+}
+$('lbSave').onclick = () => lbClaim($('lbIn').value, lbMsg, lbRender);
+
+/* ---------- Perfil de jugador ---------- */
+let pGames = 0, pKills = 0;
+try { pGames = +localStorage.getItem('arenaChispaGP') || 0; pKills = +localStorage.getItem('arenaChispaKT') || 0; } catch (e) {}
+function profAdd(k) { pGames++; pKills += k; save('arenaChispaGP', pGames); save('arenaChispaKT', pKills); }
+function profBtn() { $('profB').textContent = lbName ? '👤 ' + lbName : '👤 CREAR PERFIL'; }
+function profMsg(t, bad) { const e = $('profMsg'); e.textContent = t; e.style.color = bad ? '#ff8a8a' : ''; }
+let profReq = 0;
+function profRender() {
+  const rk = rankOf(cups), ch = CHARS[charI] || CHARS[0], my = ++profReq;
+  $('profH').textContent = lbName ? 'PERFIL' : 'CREA TU PERFIL';
+  $('profAv').textContent = ch.e; $('profAv').style.background = charI ? ch.c1 : SKINS[0].c1;
+  $('profNm').textContent = lbName || 'Sin nombre';
+  $('profIn').value = lbName;
+  const rows = [['Rango', rk.e + ' ' + rk.n], ['Copas', '🏆 ' + cups], ['Mejor oleada', '🌊 ' + lbBW], ['Mejor puntuación', best],
+    ['Monedas (mejor partida)', '🪙 ' + lbBM], ['Enemigos derrotados', kills0()], ['Partidas jugadas', pGames], ['Puesto global', lbName ? '…' : 'Crea tu nombre']];
+  function kills0() { return pKills; }
+  const box = $('profSt'); box.innerHTML = '';
+  rows.forEach(r => { const a = document.createElement('span'), b = document.createElement('span'); a.textContent = r[0]; b.textContent = r[1]; box.append(a, b); });
+  if (!lbName) return;
+  const last = box.children[box.children.length - 1];
+  lbPush().then(() => Promise.all(['c', 'w', 'm'].map(k => lbApi('/api/top?cat=' + k + '&name=' + encodeURIComponent(lbName)).then(r => r.ok && r.j.me ? '#' + r.j.me.r : '—'))))
+    .then(v => { if (my === profReq) last.textContent = '🏆 ' + v[0] + '  🌊 ' + v[1] + '  🪙 ' + v[2]; })
+    .catch(() => { if (my === profReq) last.textContent = 'Sin conexión'; });
+}
+function openProf() { $('menu').classList.add('hidden'); $('prof').classList.remove('hidden'); profMsg(lbName ? '' : 'Elige tu nombre de jugador (3 a 12 letras, números o _)'); profRender(); }
+$('profB').onclick = openProf;
+$('profBack').onclick = () => { $('prof').classList.add('hidden'); $('menu').classList.remove('hidden'); setMC(); profBtn(); };
+$('profSave').onclick = () => lbClaim($('profIn').value, profMsg, profRender);
+$('profIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('profSave').click(); });
+profBtn();
 $('lbIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('lbSave').click(); });
 function goMenu() {
   state = 'menu'; reset(); mouse.down = false; cv.style.cursor = 'default';
-  for (const i of ['pause', 'over', 'upg', 'shop', 'mis', 'lb', 'chars', 'charD', 'chest']) $(i).classList.add('hidden');
+  for (const i of ['pause', 'over', 'upg', 'shop', 'mis', 'lb', 'prof', 'chars', 'charD', 'chest']) $(i).classList.add('hidden');
   setMC(); updChar();
   $('menu').classList.remove('hidden');
 }
