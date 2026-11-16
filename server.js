@@ -5,7 +5,7 @@ const http = require('http'), fs = require('fs'), path = require('path'), crypto
 const PORT = +process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'leaderboard.json');
-const MAX = { c: 25000, w: 1000, m: 20000 };          // topes razonables (copas, oleada, monedas por partida)
+const MAX = { c: 10000, w: 1000, m: 20000 };          // topes razonables (copas, oleada, monedas por partida)
 const NAME_RE = /^[\p{L}\p{N}_ ]{3,12}$/u;
 const CATS = ['c', 'w', 'm'];
 

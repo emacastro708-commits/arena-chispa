@@ -1,8 +1,8 @@
 // Sube el número cuando publiques una versión nueva (no es obligatorio: index.html siempre se busca primero en internet).
-const VERSION = 'arena-chispa-v20';
+const VERSION = 'arena-chispa-v21';
 const FILES = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png',
-  './icons/apple-touch-icon.png', './icons/favicon-32.png', './icons/splash.png'];
+  './icons/apple-touch-icon.png', './icons/rank-bronce.png', './icons/rank-plata.png', './icons/rank-oro.png', './icons/rank-diamante.png', './icons/rank-leyenda.png', './icons/rank-master.png', './icons/favicon-32.png', './icons/splash.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
