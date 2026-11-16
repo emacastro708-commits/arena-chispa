@@ -1,5 +1,5 @@
 // Sube el número cuando publiques una versión nueva (no es obligatorio: index.html siempre se busca primero en internet).
-const VERSION = 'arena-chispa-v24';
+const VERSION = 'arena-chispa-v19';
 const FILES = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png', './icons/splash.png'];
@@ -18,7 +18,6 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
-  if (new URL(req.url).pathname.startsWith('/api/')) return;   // la clasificación siempre en vivo
   const isPage = req.mode === 'navigate' || req.destination === 'document';
   if (isPage) {
     // Primero internet (así se actualiza solo); sin internet, usa la copia guardada.
