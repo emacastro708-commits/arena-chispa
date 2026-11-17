@@ -239,6 +239,7 @@ button.imgbtn:active{transform:translateY(calc(var(--u)*3)) scale(.97)}
     <div class="row"><button id="shopB" class="imgbtn" aria-label="Tienda"><img id="shopImg" alt="Tienda" style="height:calc(var(--u)*84)"></button><button id="charB" class="sec">👤 PERSONAJES</button><button id="play">¡JUGAR!</button><button id="mapB" class="sec">🗺 MAPA</button></div>
   </div>
 
+  <button id="tryExit" class="sec hidden" style="position:absolute;z-index:6;top:calc(var(--u)*86);right:calc(var(--u)*16);margin:0">✖ SALIR</button>
   <div id="pause" class="overlay hidden">
     <h2 class="pause">PAUSA</h2>
     <p class="tag"><span class="kb">Pulsa P o haz clic</span><span class="tch">Toca la pantalla</span> para continuar</p>
@@ -431,15 +432,18 @@ const MAPS = [
    b:[{x:60,y:240,w:100,h:160},{x:800,y:240,w:100,h:160},{x:380,y:160,w:200,h:60},{x:380,y:410,w:200,h:60}]}
 ];
 const save = (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) {} };
+const TRYMAP = {n:'Estudio de pruebas', g:['#2d3050','#282b48'], t:'#7a6cff', pc:['#8a7cff','#c0b6ff','#5d52c9'],
+  w:[{x:200,y:150,w:40,h:100},{x:720,y:150,w:40,h:100},{x:200,y:390,w:40,h:100},{x:720,y:390,w:40,h:100},{x:440,y:290,w:80,h:40}],
+  b:[{x:60,y:250,w:100,h:140},{x:800,y:250,w:100,h:140}]};
 let mapI = 0; try { mapI = +localStorage.getItem('arenaChispaMap') || 0; } catch (e) {} if (mapI >= MAPS.length) mapI = 0;
 let unl = 0; try { unl = +localStorage.getItem('arenaChispaUnl') || 0; } catch (e) {}
 if (mapI > unl) mapI = unl;
 let pv = mapI;
-function applyMap() {
-  const m = MAPS[mapI];
+function applyMap(m0) {
+  const m = m0 || MAPS[mapI];
   W = m.sz ? m.sz[0] : 960; H = m.sz ? m.sz[1] : 640; water.splice(0, water.length, ...(m.water || []).map(o => ({...o})));
   walls.splice(0, walls.length, ...m.w.map(o => ({...o}))); bushes.splice(0, bushes.length, ...m.b.map(o => ({...o})));
-  buildBg(m); $('mapB').textContent = '🗺 ' + m.n;
+  buildBg(m); if (!m0) $('mapB').textContent = '🗺 ' + m.n;
 }
 applyMap();
 
@@ -791,7 +795,7 @@ function enemyShoot(e) {
 
 /* ---------- Daño ---------- */
 function hurtPlayer(d) {
-  if (!p.alive || p.dashT > 0 || p.chT > 0) return;
+  if (!p.alive || mode === 'try' || p.dashT > 0 || p.chT > 0) return;
   if (p.shield > 0) { addText(p.x, p.y - 28, 'BLOQUEADO', '#5ec8ff', 16); spark(p.x, p.y, '#5ec8ff', 6); SFX.hit(); return; }
   p.hp -= d; p.flash = .15; p.lastHit = time; shake = Math.max(shake, 7);
   addText(p.x, p.y - 28, '-' + d, '#ff4d6d', 20); spark(p.x, p.y, '#ff4d6d', 8); SFX.hurt();
@@ -828,6 +832,7 @@ function killEnemy(e) {
     if (e.kind === 'salchi' || r < (p.hp < p.max ? .10 : .04)) pickups.push({x:e.x, y:e.y, kind:'heart', life:10});
     else if (r < .30) pickups.push({x:e.x, y:e.y, kind:'gem', life:10});
   }
+  if (mode === 'try') pickups.length = 0;
 }
 
 /* ---------- IA ---------- */
@@ -975,7 +980,8 @@ function update(dt) {
   comboT -= dt; if (comboT <= 0) combo = 0;
 
   // oleadas
-  if (mode === 'des') desUpdate(dt);
+  if (mode === 'try') tryUpdate(dt);
+  else if (mode === 'des') desUpdate(dt);
   else if (mode === 'edw') edwUpdate(dt);
   else if (waveDelay > 0) { waveDelay -= dt; if (waveDelay <= 0) startWave(); }
   else {
@@ -1098,6 +1104,11 @@ function edwReward() {
   if (desWin) { inv.m++; save('arenaChispaInv', JSON.stringify(inv)); }
   $('over').querySelector('h2').textContent = desWin ? '¡EDWIN DERROTADO!' : 'EDWIN GANÓ';
   $('newrec').innerHTML = emj('+🎫' + bn + ' bonos   +🪙' + cn) + (desWin ? ' &nbsp; +<img class="ico" style="height:2.1em;vertical-align:-.7em" alt="Cofre mítico" src="' + CHEST_IMG.m.closed + '">' : '');
+}
+function tryUpdate(dt) {                               // modo prueba: enemigos sin fin, súper y dash siempre listos
+  p.sup = 1; p.dashCd = 0; if (p.hyT <= 0) p.hy = 1; p.hp = p.max; p.ammo = p.ammoMax;
+  spawnTimer -= dt;
+  if (spawnTimer <= 0 && enemies.length < 5) { spawnEnemy(Math.random() < .35 ? 'salchi' : 'robot'); spawnTimer = .8; }
 }
 function desReward() {
   const b = enemies.find(e => e.kind === 'salcedo'), fr = desWin ? 1 : b ? clamp(1 - b.hp / b.max, 0, 1) : 0;
@@ -1466,8 +1477,8 @@ function hud() {
   txt(p.hyT > 0 ? 'HYPER x2' : hf ? (isTouch ? '¡HYPER LISTO!' : 'HYPER LISTO (SCH)') : 'HYPER', 560, SCH - 52, 14, hf || p.hyT > 0 ? '#ff7a2f' : '#d9d3ff', 'center', 4);
   if (gadOwned.includes(p.ch)) { const gr = 1 - p.gadCd / CHARS[p.ch].gcd; bar(700, SCH - 39, 110, 18, gr, gr >= 1 ? '#7dff9b' : '#3f8f5b'); hudIco('g', 647, SCH - 30, gr >= 1); txt(gr >= 1 ? (isTouch ? '¡GADGET LISTO!' : 'GADGET LISTO (G)') : 'GADGET', 700, SCH - 52, 14, gr >= 1 ? '#7dff9b' : '#d9d3ff', 'center', 4); }
   // oleada y enemigos
-  txt(mode === 'des' ? 'DESAFÍO' : mode === 'edw' ? 'EVENTO EDWIN' : 'OLEADA ' + Math.max(1, wave), SCW/2, 28, 26, '#fff', 'center', 6);
-  txt('Enemigos: ' + (enemies.length + queue.length), SCW/2, 54, 16, '#d9d3ff', 'center', 4);
+  txt(mode === 'try' ? 'MODO PRUEBA' : mode === 'des' ? 'DESAFÍO' : mode === 'edw' ? 'EVENTO EDWIN' : 'OLEADA ' + Math.max(1, wave), SCW/2, 28, 26, '#fff', 'center', 6);
+  txt(mode === 'try' ? 'Inmortal · no suma copas ni premios' : 'Enemigos: ' + (enemies.length + queue.length), SCW/2, 54, 16, '#d9d3ff', 'center', 4);
   // puntos
   txt('PUNTOS ' + score, SCW - 22, 28, 26, '#ffd23f', 'right', 6);
   txt('Récord ' + Math.max(best, score), SCW - 22, 54, 15, '#d9d3ff', 'right', 4);
@@ -1663,9 +1674,11 @@ function pickUpgrade(i) {
 
 /* ---------- Flujo del juego ---------- */
 function startGame(m) {
-  mode = (m === 'des' || m === 'edw') ? m : 'norm'; desWin = false;
-  if (pv > unl) return;
-  reset(); state = 'play'; p.spwT = demOn() ? 1.2 : 0; if (p.spwT) tone(120, 700, 1, 'sawtooth', .07);
+  mode = (m === 'des' || m === 'edw' || m === 'try') ? m : 'norm'; desWin = false;
+  if (pv > unl && mode !== 'try') return;
+  if (mode === 'try') applyMap(TRYMAP); else applyMap();
+  reset(); state = 'play'; $('tryExit').classList.toggle('hidden', mode !== 'try');
+  if (mode === 'try') { wave = 1; banner = {t:2.2, text:'MODO PRUEBA', sub:'Inmortal · sin copas ni premios'}; } p.spwT = demOn() ? 1.2 : 0; if (p.spwT) tone(120, 700, 1, 'sawtooth', .07);
   if (mode === 'des') { for (const u of POOL) u.f(); p.ammo = p.ammoMax; wave = 1; desSp = false; desT = 1.5; banner = {t:2, text:'¡DESAFÍO!'}; }
   if (mode === 'edw') { for (const u of POOL) u.f(); p.ammo = p.ammoMax; wave = 1; edwSp = false; edwT = 1.8; banner = {t:2.4, text:'¡EVENTO EDWIN!', sub:'Derrótalo y gana 🎫150 · 🪙250 · cofre Mítico'}; }
   $('shop').classList.add('hidden'); $('mis').classList.add('hidden'); $('menu').classList.add('hidden'); $('over').classList.add('hidden'); $('pause').classList.add('hidden');
@@ -1745,13 +1758,13 @@ const CHARS = [
   {n:'Ronald', cost:1000, e:'🦏', d:'Embiste · Súper: explosión', c1:'#b5651d', c2:'#5a3510', c3:'#e8b27a', hat:'🥊', g:'Atrae y elimina · 20 s', gcd:20},
   {n:'Edwin', cost:900, e:'🥊', d:'Patadas cortas · Súper: rayo 5 s', c1:'#7a4be0', c2:'#241a46', c3:'#d9c2ff', hat:'🥊', g:'Vida completa · 17 s', gcd:17}
 ];
-function pc() { if (!charI) return SKINS[skinI]; if (charI === 2 && skinR >= 0) return SKINS[skinR]; return CHARS[charI]; }
-let charI = 0, gadOwned = [];
+function pc() { if (!charI) return tryDem ? SKINS[SKINS.length - 1] : SKINS[skinI]; if (charI === 2 && skinR >= 0) return SKINS[skinR]; return CHARS[charI]; }
+let charI = 0, gadOwned = [], tryDem = false;
 try { charI = +localStorage.getItem('arenaChispaChar') || 0; gadOwned = JSON.parse(localStorage.getItem('arenaChispaGad') || '[]') || []; } catch (e) {}
 if (!CHARS[charI]) charI = 0;
 [4, 5, 6, 7, 10].forEach(i => SKINS[i].cape = 1); [5, 6, 7, 9, 10].forEach(i => SKINS[i].aura = 1);
 SKINS.push({n:'Ronald Imperial', c1:'#7a1fa2', c2:'#ffd23f', c3:'#e6b3ff', hat:'👑', pr:0, ex:1, only:2, cape:1, aura:1});
-SKINS.push({n:'Diablilla', c1:'#d92b3a', c2:'#3a1a4a', c3:'#ff8a5a', hat:'', pr:3000, dem:1, leg:1});
+SKINS.push({n:'Demon', c1:'#d92b3a', c2:'#3a1a4a', c3:'#ff8a5a', hat:'', pr:3000, dem:1, leg:1});
 const DEMI = SKINS.length - 1; SKINS.forEach((k, i) => { if (i >= 1 && i !== DEMI) k.old = 1; });   // las skins viejas siguen ocultas
 let bonos = 0, inv = {c:0, e:0, m:0, l:0}, charsOwned = [0], skinR = -1;
 try { bonos = +localStorage.getItem('arenaChispaBonos') || 0; Object.assign(inv, JSON.parse(localStorage.getItem('arenaChispaInv') || '{}')); charsOwned = JSON.parse(localStorage.getItem('arenaChispaChars') || '[0]') || [0]; const sr = localStorage.getItem('arenaChispaSkinR'); skinR = sr === null ? -1 : +sr; } catch (e) {}
@@ -1789,6 +1802,10 @@ function openShop() {
     const d = document.createElement('div'); d.className = 'ds'; d.innerHTML = emj(lk ? 'Solo en cofres' : isEq(k, i) ? '✔ Equipada' : has ? 'Toca para usar' : '🪙 ' + k.pr + (k.leg ? '<br><small>o cofre legendario</small>' : ''));
     if (isEq(k, i)) c.style.boxShadow = '0 0 0 4px #7dff9b';
     c.append(ic, n, d);
+    if (k.dem && !has) {
+      const tb = document.createElement('button'); tb.className = 'sec'; tb.textContent = '🧪 PROBAR'; tb.style.cssText = 'margin:calc(var(--u)*6) 0 0;padding:calc(var(--u)*4) calc(var(--u)*12);font-size:calc(var(--u)*14)';
+      tb.onclick = ev => { ev.stopPropagation(); tryDem = true; SFX.pick(); goFull(); startGame('try'); }; c.appendChild(tb);
+    }
     c.onclick = () => {
       if (!has) { if (k.ex) return; if (coins < k.pr) { d.innerHTML = emj('Faltan 🪙' + (k.pr - coins)); return; } coins -= k.pr; owned.push(String(i)); save('arenaChispaCoins', coins); save('arenaChispaOwned', JSON.stringify(owned)); }
       if (k.only === 2) { skinR = skinR === i ? -1 : i; save('arenaChispaSkinR', skinR); } else { skinI = i; save('arenaChispaSkin', i); } SFX.pick(); openShop();
@@ -1899,7 +1916,7 @@ function demIcon() { try { const f = DEM.T.idle[0], cv = document.createElement(
 function openReward(t) {
   if (!inv[t]) return; inv[t]--; save('arenaChispaInv', JSON.stringify(inv));
   const d = CH[t], r = Math.random(), ri = a => a[0] + Math.floor(Math.random() * (a[1] - a[0] + 1)); let msg;
-  if (t === 'l' && !owned.includes(String(DEMI)) && Math.random() < .08) { owned.push(String(DEMI)); save('arenaChispaOwned', JSON.stringify(owned)); skinI = DEMI; save('arenaChispaSkin', DEMI); chSkinIcon = demIcon(); msg = '😈 ¡Skin Diablilla!'; }
+  if (t === 'l' && !owned.includes(String(DEMI)) && Math.random() < .08) { owned.push(String(DEMI)); save('arenaChispaOwned', JSON.stringify(owned)); skinI = DEMI; save('arenaChispaSkin', DEMI); chSkinIcon = demIcon(); msg = '😈 ¡Skin Demon!'; }
   else if (r < d.pc) { const c = ri(d.coin); coins += c; msg = 'Cofre: +🪙' + c; }
   else if (r < d.pc + d.pb) { const b = ri(d.bon); bonos += b; msg = 'Cofre: +🎫' + b + ' bonos'; }
   else {
@@ -2017,6 +2034,7 @@ function misToday() {
   const a = h % n, b = (a + 1 + (h >>> 4) % 3) % n, c = (b + 1 + (h >>> 8) % 3) % n; return [a, b, c].map(i => MPOOL[i]);
 }
 function mis(ev, v = 1) {
+  if (mode === 'try') return;
   const m = misState();
   for (const q of misToday()) if (q.ev === ev) m.p[q.id] = q.max ? Math.max(m.p[q.id] || 0, v) : (m.p[q.id] || 0) + v;
   save('arenaChispaMis', JSON.stringify(m));
@@ -2155,6 +2173,8 @@ $('profSave').onclick = () => lbClaim($('profIn').value, profMsg, profRender);
 $('profIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('profSave').click(); });
 profBtn();
 function goMenu() {
+  if (mode === 'try') { mode = 'norm'; tryDem = false; applyMap(); }
+  $('tryExit').classList.add('hidden');
   state = 'menu'; reset(); mouse.down = false; cv.style.cursor = 'default';
   for (const i of ['pause', 'over', 'upg', 'shop', 'mis', 'lb', 'prof', 'chars', 'charD', 'chest']) $(i).classList.add('hidden');
   setMC(); updChar();
@@ -2172,6 +2192,7 @@ $('mapB').onclick = () => {
 };
 $('toMenu1').onclick = e => { e.stopPropagation(); goMenu(); };
 $('toMenu2').onclick = goMenu;
+$('tryExit').onclick = e => { e.stopPropagation(); goMenu(); };
 
 /* ---------- Música procedural (silenciable con M) ---------- */
 const BASS = [110,110,131,110,110,110,131,110, 98,98,123,98,98,98,123,98];
