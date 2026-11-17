@@ -8,6 +8,7 @@ const DB_FILE = path.join(DATA_DIR, 'leaderboard.json');
 const MAX = { c: 10000, w: 1000, m: 20000 };          // topes razonables (copas, oleada, monedas por partida)
 const NAME_RE = /^[\p{L}\p{N}_ ]{3,12}$/u;
 const CATS = ['c', 'w', 'm'];
+const EXTRA = { b: 1e8, g: 1e6, k: 1e7 };            // mejor puntuación, partidas, enemigos derrotados (solo suben)
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 let db = { users: {} };
@@ -58,10 +59,17 @@ async function api(req, res, url, ip) {
   if (req.method === 'GET' && url.pathname === '/api/top') {
     const cat = url.searchParams.get('cat'); if (!CATS.includes(cat)) return send(res, 400, { error: 'categoría' });
     const rows = Object.values(db.users).filter(u => u[cat] > 0).sort((a, b) => b[cat] - a[cat] || a.t - b.t);
-    const top = rows.slice(0, 10).map(u => ({ n: u.name, v: u[cat], c: u.c }));
+    const top = rows.slice(0, 10).map(u => ({ n: u.name, v: u[cat] }));
     let me = null; const q = cleanName(url.searchParams.get('name'));
-    if (q) { const i = rows.findIndex(u => key(u.name) === key(q)); if (i >= 0) me = { n: rows[i].name, v: rows[i][cat], r: i + 1, c: rows[i].c }; }
+    if (q) { const i = rows.findIndex(u => key(u.name) === key(q)); if (i >= 0) me = { n: rows[i].name, v: rows[i][cat], r: i + 1 }; }
     return send(res, 200, { top, me, total: rows.length });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/profile') {      // perfil público de cualquier jugador
+    const q = cleanName(url.searchParams.get('name')), u = db.users[key(q)];
+    if (!u) return send(res, 404, { error: 'no existe' });
+    const rows = Object.values(db.users).filter(x => x.c > 0).sort((a, b) => b.c - a.c || a.t - b.t), i = rows.indexOf(u);
+    return send(res, 200, { n: u.name, c: u.c || 0, w: u.w || 0, m: u.m || 0, b: u.b || 0, g: u.g || 0, k: u.k || 0, ch: u.ch || 0, since: u.t, r: i >= 0 ? i + 1 : null, total: rows.length });
   }
 
   if (req.method !== 'POST') return send(res, 404, { error: 'no existe' });
@@ -89,6 +97,8 @@ async function api(req, res, url, ip) {
       const v = Math.floor(+b[c]);
       if (Number.isFinite(v) && v > 0) u[c] = Math.max(u[c], Math.min(v, MAX[c]));
     }
+    for (const c in EXTRA) { const v = Math.floor(+b[c]); if (Number.isFinite(v) && v > 0) u[c] = Math.max(u[c] || 0, Math.min(v, EXTRA[c])); }
+    const ch = Math.floor(+b.ch); if (Number.isFinite(ch) && ch >= 0 && ch < 30) u.ch = ch;
     save(); return send(res, 200, { ok: true });
   }
   return send(res, 404, { error: 'no existe' });

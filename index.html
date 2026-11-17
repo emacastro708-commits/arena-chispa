@@ -2007,7 +2007,7 @@ function lbApi(url, data) {
   return fetch(LB_API + url, data ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data), signal:ac.signal} : {signal:ac.signal})
     .then(r => r.json().then(j => ({ok:r.ok, status:r.status, j}))).finally(() => clearTimeout(to));
 }
-function lbPush() { return lbName ? lbApi('/api/score', {name:lbName, token:lbTok, c:cups, w:lbBW, m:lbBM}).catch(() => null) : Promise.resolve(null); }
+function lbPush() { return lbName ? lbApi('/api/score', {name:lbName, token:lbTok, c:cups, w:lbBW, m:lbBM, b:best, g:pGames, k:pKills, ch:charI}).catch(() => null) : Promise.resolve(null); }
 function lbSubmit(w, m) {
   lbBW = Math.max(lbBW, w); lbBM = Math.max(lbBM, m); save('arenaChispaBW', lbBW); save('arenaChispaBM', lbBM); lbPush();
 }
@@ -2039,6 +2039,7 @@ function lbDraw(j, loading, offline) {
       const em = document.createElement('span'); em.className = 'em'; em.appendChild(rkImg(rankOf(t.v), 59)); d.appendChild(em);
       const n = document.createElement('span'); n.className = 'nm'; n.textContent = t.n; d.appendChild(n);
       const g = document.createElement('span'); g.className = 'rg'; g.textContent = '🏆 ' + t.v; d.appendChild(g);
+      d.style.cursor = 'pointer'; d.title = 'Ver perfil'; d.onclick = () => { SFX.pick(); viewProf(t.n, t.v); };
     } else {
       const n = document.createElement('span'); n.className = 'nm'; n.textContent = loading ? 'Cargando…' : '—'; d.appendChild(n);
     }
@@ -2085,9 +2086,30 @@ function profRender() {
     .then(v => { if (my === profReq) last.textContent = '🏆 ' + v; })
     .catch(() => { if (my === profReq) last.textContent = 'Sin conexión'; });
 }
-function openProf() { $('menu').classList.add('hidden'); $('prof').classList.remove('hidden'); profMsg(lbName ? '' : 'Elige tu nombre de jugador (3 a 12 letras, números o _)'); profRender(); }
+let profFrom = 'menu';
+function viewProf(name, cupsHint) {                       // perfil de otro jugador (solo lectura)
+  if (lbName && name.toLowerCase() === lbName.toLowerCase()) { profFrom = 'lb'; $('lb').classList.add('hidden'); $('prof').classList.remove('hidden'); $('lbName').style.display = ''; profMsg(''); profRender(); return; }
+  profFrom = 'lb'; $('lb').classList.add('hidden'); $('prof').classList.remove('hidden');
+  $('lbName').style.display = 'none'; profMsg('');
+  const my = ++profReq, box = $('profSt'), rk0 = rankOf(cupsHint || 0);
+  $('profH').textContent = 'PERFIL'; $('profNm').textContent = name;
+  { const av = $('profAv'); av.textContent = ''; av.appendChild(rkImg(rk0, 124)); }
+  box.innerHTML = ''; { const a = document.createElement('span'), b = document.createElement('span'); a.textContent = 'Cargando…'; box.append(a, b); }
+  lbApi('/api/profile?name=' + encodeURIComponent(name)).then(r => {
+    if (my !== profReq) return; if (!r.ok) throw 0; const j = r.j, rk = rankOf(j.c), ch = CHARS[j.ch] || CHARS[0];
+    $('profNm').textContent = j.n; { const av = $('profAv'); av.textContent = ''; av.appendChild(rkImg(rk, 124)); }
+    const rows = [['Rango', rk.n], ['Copas', '🏆 ' + j.c], ['Puesto global', j.r ? '👑 #' + j.r + ' de ' + j.total : '—'], ['Mejor oleada', '🌊 ' + j.w], ['Mejor puntuación', j.b || '—'],
+      ['Monedas (mejor partida)', '🪙 ' + j.m], ['Enemigos derrotados', j.k || '—'], ['Partidas jugadas', j.g || '—'], ['Personaje', ch.n], ['Jugando desde', new Date(j.since).toLocaleDateString('es')]];
+    box.innerHTML = ''; rows.forEach(x => { const a = document.createElement('span'), b = document.createElement('span'); a.textContent = x[0]; b.innerHTML = emj(String(x[1])); box.append(a, b); });
+  }).catch(() => {
+    if (my !== profReq) return; box.innerHTML = '';
+    for (const x of [['Rango', rk0.n], ['Copas', '🏆 ' + (cupsHint || 0)]]) { const a = document.createElement('span'), b = document.createElement('span'); a.textContent = x[0]; b.innerHTML = emj(String(x[1])); box.append(a, b); }
+    profMsg('No se pudo cargar el perfil completo.', true);
+  });
+}
+function openProf() { profFrom = 'menu'; $('lbName').style.display = ''; $('menu').classList.add('hidden'); $('prof').classList.remove('hidden'); profMsg(lbName ? '' : 'Elige tu nombre de jugador (3 a 12 letras, números o _)'); profRender(); }
 $('profB').onclick = openProf;
-$('profBack').onclick = () => { $('prof').classList.add('hidden'); $('menu').classList.remove('hidden'); setMC(); profBtn(); };
+$('profBack').onclick = () => { profReq++; $('prof').classList.add('hidden'); $('lbName').style.display = ''; if (profFrom === 'lb') { $('lb').classList.remove('hidden'); profFrom = 'menu'; } else { $('menu').classList.remove('hidden'); setMC(); profBtn(); } };
 $('profSave').onclick = () => lbClaim($('profIn').value, profMsg, profRender);
 $('profIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('profSave').click(); });
 profBtn();
